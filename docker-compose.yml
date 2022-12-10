@@ -1,0 +1,61 @@
+# docker-compose file managing Nginx and the application
+# Loading some variables from the .env file:
+#   - DOMAIN: DNS domain name
+#   - EMAIL: Maintainer email
+#   - APP_FOLDER: Directory containing the application
+#   - FLASK_APP: Flask entrypoint
+#   - FLASK_ENV: Flask environment
+
+version: "3.9"
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+      args:
+        DOMAIN: ${DOMAIN}
+        EMAIL: ${EMAIL}
+        FLASK: application
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+    depends_on:
+      - application
+
+  application:
+    build: ./${APP_FOLDER}
+    environment:
+      - FLASK_ENV=${FLASK_ENV}
+      - FLASK_APP=${FLASK_APP}
+      - GUNICORN_OPTIONS=${GUNICORN_OPTIONS}
+    ports:
+      - 5000:5000
+    volumes:
+      - ./migrations:/opt/app/migrations
+      - ./app:/opt/app/app
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8
+    restart: always
+    ports:
+      - 3306:3306
+    volumes:
+      - my-db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_DATABASE=${MYSQL_DB}
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE - stops "mbind operation not permitted logs"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+volumes:
+  my-db:

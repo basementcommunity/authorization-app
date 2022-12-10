@@ -1,0 +1,9 @@
+.vscode
+include
+lib
+/bin
+.env
+**/__pycache__/**
+uwsgi-reload
+supervisord.log
+supervisord.pid
